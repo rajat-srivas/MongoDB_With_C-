@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
@@ -6,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using MongoDB.Operations.Middleware;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,6 +28,12 @@ namespace MongoDB.Operations
 		// This method gets called by the runtime. Use this method to add services to the container.
 		public void ConfigureServices(IServiceCollection services)
 		{
+			services.AddExceptionHandler<GlobalExceptionHandler>();
+			services.AddProblemDetails();
+
+			services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+				.AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options => Configuration.Bind("JwtSettings", options))
+				.AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options => Configuration.Bind("CookieSettings", options));
 			services.AddControllers();
 			services.AddSwaggerGen(c =>
 			{
@@ -46,6 +55,13 @@ namespace MongoDB.Operations
 			}
 			// Enable middleware to serve generated Swagger as a JSON endpoint.
 			app.UseSwagger();
+
+			//Using the old middleware method
+			//app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
+
+			//using the new IExceptionHandler in .Net 8
+
+			app.UseExceptionHandler();
 
 			// Enable middleware to serve swagger-ui (HTML, JS, CSS, etc.),
 			// specifying the Swagger JSON endpoint.

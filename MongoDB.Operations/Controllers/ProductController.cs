@@ -4,6 +4,9 @@ using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.AspNetCore.Http;
+using System.Net;
+using System.Net.Http;
 
 
 namespace MongoDB.Operations.Controllers
@@ -30,6 +33,10 @@ namespace MongoDB.Operations.Controllers
 		[HttpPost]
 		public IActionResult CreateProduct(Product product)
 		{
+			if(product.Category is null)
+			{
+				throw new ArgumentNullException("Category is required");
+			}
 			// Insert sample data
 			_collection.InsertOne(product);
 			return Ok();
@@ -141,7 +148,7 @@ namespace MongoDB.Operations.Controllers
 		}
 
 		[HttpPut("{id}")]
-		public IActionResult AddProduct(string id)
+		public IActionResult UpdateProduct(string id)
 		{
 			var prodcutToUpdateFilter = Builders<Product>.Filter.Eq(x => x.Id, id);
 
