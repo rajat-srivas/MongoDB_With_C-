@@ -1,17 +1,14 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
-using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.AspNetCore.Http;
-using System.Net;
-using System.Net.Http;
 
 
 namespace MongoDB.Operations.Controllers
 {
-	[Route("api/[controller]")]
+	[ApiVersion("1.0")]
+	[Route("api/v{version:apiVersion}/[controller]")]
 	[ApiController]
 	public class ProductController : ControllerBase
 	{
@@ -26,136 +23,8 @@ namespace MongoDB.Operations.Controllers
 			_client = new MongoClient(settings);
 			_database = _client.GetDatabase("stackup");
 			_collection = _database.GetCollection<Product>("product");
-
-			//SeedData(_collection);
 		}
 
-		[HttpPost]
-		public IActionResult CreateProduct(Product product)
-		{
-			if(product.Category is null)
-			{
-				throw new ArgumentNullException("Category is required");
-			}
-			// Insert sample data
-			_collection.InsertOne(product);
-			return Ok();
-		}
-		[HttpGet]
-		public IActionResult GetAllProducts()
-		{
-			var filter = Builders<Product>.Filter.Empty;
-			var result = _collection.Find(filter).ToList() ;
-			return Ok(result);
-		}
-
-		[HttpGet("filter")]
-		
-		public IActionResult FilterProducts()
-		{
-			//using Linq without builder
-			var filteredData = _collection.Find(x => x.InStock == true).ToList();
-
-			//using builder
-			var filterBuilder = Builders<Product>.Filter;
-			FilterDefinition<Product> filter = null;
-
-			//filter based on equality, less than etc
-			filter = filterBuilder.Lt(x => x.Price, 800) & filterBuilder.Eq(x => x.InStock, false);
-
-			//array filter
-			// filter = filterBuilder.AnyEq(x => x.Ratings, 1);
-
-			filteredData = _collection.Find(filter).ToList();
-
-			return Ok(filteredData);
-		}
-
-		[HttpGet("sort")]
-
-		public IActionResult SortProducts()
-		{
-			var sortBuilder = Builders<Product>.Sort;
-
-			var sortFilter = sortBuilder.Ascending(x => x.Price).Descending(x => x.Ratings);
-
-			var filter = Builders<Product>.Filter.Empty;
-
-			var result = _collection.Find(filter).Sort(sortFilter).ToList();
-
-			return Ok(result);
-		}
-
-		[HttpGet("projection")]
-		//Projections => which fields to include or exclude in the query results
-
-		public IActionResult ProjectProducts()
-		{
-			var projectionBuilder = Builders<Product>.Projection;
-			
-			ProjectionDefinition<Product> projection = null;
-
-			projection = projectionBuilder.Include(x => x.Name).Include(x => x.Category);
-
-			//projection = projection.Exclude(x => x.Price);
-
-			var filter = Builders<Product>.Filter.Eq(x => x.Category, "Electronics");
-
-			var result = _collection.Find(filter).Project<Product>(projection).ToList();
-
-			return Ok(result);
-		}
-
-		[HttpGet("aggregate")]
-		//Projections => which fields to include or exclude in the query results
-
-		public IActionResult AggregateProducts()
-		{
-			//var filter = Builders<Product>.Filter.Eq(x => x.InStock, true);
-
-			var filter = Builders<Product>.Filter.Empty;
-
-			//with sort
-			var aggregate2 = _collection.Aggregate().Match(filter).SortByDescending(x => x.Price); 
-
-			//with group
-			var aggregate = _collection.Aggregate()
-				.Match(filter)
-				.Group(x => x.InStock,
-					doc => new
-					{
-						Instocks = doc.Key,
-						count = doc.Sum(x => 1)
-					}
-				);
-
-			//with projection => create new response with new field
-
-			var projections = Builders<Product>.Projection.Expression(x => new
-			{
-				Category = x.Category,
-				Price = x.Price,
-				Name = x.Name,
-				Available = x.InStock ? "Yes" : "No"
-			});
-			var aggregate3 = _collection.Aggregate().Match(filter)
-				.Project(projections);
-
-
-			var result = aggregate3.ToList();
-
-			return Ok(result);
-		}
-
-		[HttpPut("{id}")]
-		public IActionResult UpdateProduct(string id)
-		{
-			var prodcutToUpdateFilter = Builders<Product>.Filter.Eq(x => x.Id, id);
-
-			var update = Builders<Product>.Update.Set(x => x.Name, "Macbook Laptop");
-			var result = _collection.UpdateOne(prodcutToUpdateFilter, update);
-			return Ok(result.IsAcknowledged);
-		}
 		private void SeedData(IMongoCollection<Product> collection)
 		{
 			var products = new List<Product>
@@ -216,5 +85,137 @@ namespace MongoDB.Operations.Controllers
 			collection.InsertManyAsync(products);
 
 		}
+
+		[HttpPost]
+		[MapToApiVersion("1.0")]
+		public IActionResult CreateProductV2(Product product)
+		{
+			if(product.Category is null)
+			{
+				throw new ArgumentNullException("Category is required");
+			}
+			// Insert sample data
+			_collection.InsertOne(product);
+			return Ok();
+		}
+
+		#region
+		//[HttpGet]
+		//public IActionResult GetAllProducts()
+		//{
+		//	var filter = Builders<Product>.Filter.Empty;
+		//	var result = _collection.Find(filter).ToList() ;
+		//	return Ok(result);
+		//}
+
+		//[HttpGet("filter")]
+
+		//public IActionResult FilterProducts()
+		//{
+		//	//using Linq without builder
+		//	var filteredData = _collection.Find(x => x.InStock == true).ToList();
+
+		//	//using builder
+		//	var filterBuilder = Builders<Product>.Filter;
+		//	FilterDefinition<Product> filter = null;
+
+		//	//filter based on equality, less than etc
+		//	filter = filterBuilder.Lt(x => x.Price, 800) & filterBuilder.Eq(x => x.InStock, false);
+
+		//	//array filter
+		//	// filter = filterBuilder.AnyEq(x => x.Ratings, 1);
+
+		//	filteredData = _collection.Find(filter).ToList();
+
+		//	return Ok(filteredData);
+		//}
+
+		//[HttpGet("sort")]
+
+		//public IActionResult SortProducts()
+		//{
+		//	var sortBuilder = Builders<Product>.Sort;
+
+		//	var sortFilter = sortBuilder.Ascending(x => x.Price).Descending(x => x.Ratings);
+
+		//	var filter = Builders<Product>.Filter.Empty;
+
+		//	var result = _collection.Find(filter).Sort(sortFilter).ToList();
+
+		//	return Ok(result);
+		//}
+
+		//[HttpGet("projection")]
+		////Projections => which fields to include or exclude in the query results
+
+		//public IActionResult ProjectProducts()
+		//{
+		//	var projectionBuilder = Builders<Product>.Projection;
+
+		//	ProjectionDefinition<Product> projection = null;
+
+		//	projection = projectionBuilder.Include(x => x.Name).Include(x => x.Category);
+
+		//	//projection = projection.Exclude(x => x.Price);
+
+		//	var filter = Builders<Product>.Filter.Eq(x => x.Category, "Electronics");
+
+		//	var result = _collection.Find(filter).Project<Product>(projection).ToList();
+
+		//	return Ok(result);
+		//}
+
+		//[HttpGet("aggregate")]
+		////Projections => which fields to include or exclude in the query results
+
+		//public IActionResult AggregateProducts()
+		//{
+		//	//var filter = Builders<Product>.Filter.Eq(x => x.InStock, true);
+
+		//	var filter = Builders<Product>.Filter.Empty;
+
+		//	//with sort
+		//	var aggregate2 = _collection.Aggregate().Match(filter).SortByDescending(x => x.Price); 
+
+		//	//with group
+		//	var aggregate = _collection.Aggregate()
+		//		.Match(filter)
+		//		.Group(x => x.InStock,
+		//			doc => new
+		//			{
+		//				Instocks = doc.Key,
+		//				count = doc.Sum(x => 1)
+		//			}
+		//		);
+
+		//	//with projection => create new response with new field
+
+		//	var projections = Builders<Product>.Projection.Expression(x => new
+		//	{
+		//		Category = x.Category,
+		//		Price = x.Price,
+		//		Name = x.Name,
+		//		Available = x.InStock ? "Yes" : "No"
+		//	});
+		//	var aggregate3 = _collection.Aggregate().Match(filter)
+		//		.Project(projections);
+
+
+		//	var result = aggregate3.ToList();
+
+		//	return Ok(result);
+		//}
+
+		//[HttpPut("{id}")]
+		//public IActionResult UpdateProduct(string id)
+		//{
+		//	var prodcutToUpdateFilter = Builders<Product>.Filter.Eq(x => x.Id, id);
+
+		//	var update = Builders<Product>.Update.Set(x => x.Name, "Macbook Laptop");
+		//	var result = _collection.UpdateOne(prodcutToUpdateFilter, update);
+		//	return Ok(result.IsAcknowledged);
+		//}
+
+		#endregion
 	}
 }
